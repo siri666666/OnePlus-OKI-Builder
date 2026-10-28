@@ -1,0 +1,37 @@
+[
+  {
+    "patch": "01-CVE-2026-43284-xfrm-esp-shared-frag.patch",
+    "cve": "CVE-2026-43284",
+    "kernel": "6.1",
+    "fixed": [["net/ipv4/esp4.c", "!skb_has_shared_frag(skb)"], ["net/ipv6/esp6.c", "!skb_has_shared_frag(skb)"]],
+    "vulnerable": []
+  },
+  {
+    "patch": "02-CVE-2026-43284-ipv4-flags-followup.patch",
+    "cve": "CVE-2026-43284",
+    "kernel": "6.1",
+    "fixed": [["net/ipv4/ip_output.c", "skb_shinfo(skb)->flags |= SKBFL_SHARED_FRAG;"]],
+    "vulnerable": [["net/ipv4/ip_output.c", "skb_shinfo(skb)->tx_flags |= SKBFL_SHARED_FRAG;"]]
+  },
+  {
+    "patch": "03-CVE-2026-43499-rtmutex-remove-waiter.patch",
+    "cve": "CVE-2026-43499",
+    "kernel": "6.1",
+    "fixed": [["kernel/locking/rtmutex.c", "struct task_struct *waiter_task = waiter->task;"]],
+    "vulnerable": [["kernel/locking/rtmutex.c", "current->pi_blocked_on = NULL;"]]
+  },
+  {
+    "patch": "04-CVE-2026-64560-posix-cpu-timers.patch",
+    "cve": "CVE-2026-64560",
+    "kernel": "6.1",
+    "fixed": [["kernel/exit.c", "smp_store_release(&tsk->sighand, NULL);"], ["kernel/time/posix-cpu-timers.c", "timer_lock_sighand("]],
+    "vulnerable": [["kernel/exit.c", "tsk->sighand = NULL;"]]
+  },
+  {
+    "patch": "05-CVE-2026-98260-exec-posix-timers.patch",
+    "cve": "CVE-2026-98260",
+    "kernel": "6.1",
+    "fixed": [["fs/exec.c", "posixtimer_exec(me);"]],
+    "vulnerable": []
+  }
+]
