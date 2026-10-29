@@ -123,12 +123,12 @@ on:
         default: true
       SUFFIX:
         type: string
-        description: "伪装｜内核后缀（留空=随机仿原厂；-1=保留源码自带的；也可照原厂内核版本 android15- 后面那段填）"
+        description: "伪装｜内核后缀，建议照原厂填（刷机前抄内核版本里 android15- 后面那段，如 8-g11d7ebe61a81-abogki537459655-4k）；留空=随机仿原厂；-1=保留源码自带的"
         required: false
         default: ""
       BUILD_TIME:
         type: string
-        description: "伪装｜构建时间（F=实际构建时间；-1=不改；也可照原厂 uname -v 里的时间填）"
+        description: "伪装｜构建时间，建议照原厂填（刷机前运行 uname -v 抄里面的时间，如 Wed Nov 12 08:31:22 UTC 2025）；F=实际构建时间；-1=不改"
         required: false
         default: "Wed Jul 15 11:18:49 UTC 2026"
       RESUBLEVEL:
