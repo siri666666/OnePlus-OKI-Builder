@@ -128,7 +128,7 @@ on:
         default: ""
       BUILD_TIME:
         type: string
-        description: "伪装｜构建时间，建议填原厂的（刷机前用终端 App 或 adb 运行 uname -v，抄 PREEMPT 后面的时间，如 Tue Jun 30 05:53:43 UTC 2026）；F=实际构建时间；-1=不改"
+        description: "伪装｜构建时间，建议填原厂的（刷机前在终端 App 运行 uname -v，或在电脑运行 adb shell uname -v，抄 PREEMPT 后面的时间，如 Tue Jun 30 05:53:43 UTC 2026）；留空=实际构建时间；-1=不改"
         required: false
         default: "Wed Jul 15 11:18:49 UTC 2026"
       RESUBLEVEL:
@@ -1094,7 +1094,7 @@ jobs:
         shell: bash
         run: |
           INPUT_TIME="${{ github.event.inputs.BUILD_TIME }}"
-          if [[ -n "$INPUT_TIME" && "$INPUT_TIME" != "F" ]]; then
+          if [[ -n "$INPUT_TIME" ]]; then
             DATESTR="$INPUT_TIME"
             echo "Using input BUILD_TIME: $DATESTR"
           else
