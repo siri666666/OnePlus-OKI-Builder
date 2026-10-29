@@ -1088,6 +1088,13 @@ jobs:
             echo "已移除 block/blk-mq.c 中重复的 test_task_ux 导出"
           fi
 
+      - name: Fix oplus_task_struct Layout
+        if: ${{ env.FILE == 'oneplus_pad2_b' && github.event.inputs.SCHED_HMBIRD != 'true' }}
+        run: |
+          cd kernel_workspace/kernel_platform/common
+          # 原厂 oplus_task_struct 在 lkinfo 后有风驰 scx 字段（176 字节），公开源码删了它导致布局错位、开机崩溃；目前只核对过 pad2_b 源码对应的原厂布局
+          python3 "$GITHUB_WORKSPACE/kernel_workspace/Action-Build/scripts/fix_oplus_task_struct.py" kernel/locking/sa_common_struct.h
+
       - name: Apply LSM_BBG
         if: ${{ github.event.inputs.LSM_BBG == 'true' }}
         run: |
