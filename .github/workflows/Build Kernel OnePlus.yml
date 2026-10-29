@@ -71,7 +71,7 @@ on:
         required: true
       DEVICE_FIRMWARE:
         type: string
-        description: "机型当前固件版本（Firmware version），选填：版本信息-版本号，如 PLQ110_16.0.2.402；最新源码内核对不上时用它挑最接近的旧源码"
+        description: "机型当前系统版本（OS version），选填：版本信息-版本号里的数字，如 16.0.2.402；最新源码内核对不上时用它挑最接近的旧源码"
         required: false
         default: ""
       KPM:
@@ -434,7 +434,7 @@ jobs:
           open(sys.argv[1], "w", encoding="utf-8", newline="").write(text)
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
               f.write(f"SOURCE_FIRMWARE={label}\n")
-          hint = "" if want or len(cands) == 1 else f"；可选固件：{'，'.join(c[1] for c in cands)}，填「固件版本」可选最接近的一次"
+          hint = "" if want or len(cands) == 1 else f"；可选系统版本：{'，'.join(c[1] for c in cands)}，填「系统版本」可选最接近的一次"
           print(f"::warning title=Kernel Version::最新源码内核 {src} 与设备 {dev} 不一致，已改用固件 {label} 的源码（内核 {dev}）{hint}")
           PY
 
