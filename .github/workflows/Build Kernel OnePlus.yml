@@ -71,9 +71,8 @@ on:
         required: true
       DEVICE_FIRMWARE:
         type: string
-        description: "当前系统版本（设置-关于本机-版本信息-版本号），如 16.0.2.402，选填；内核对不上时用它挑最接近的旧源码"
-        required: false
-        default: ""
+        description: "当前系统版本（设置-关于本机-版本信息-版本号），如 16.0.2.402；内核对不上时用它挑最接近的旧源码"
+        required: true
       KPM:
         type: choice
         description: "KernelPatch 补丁，N/A=不打"
@@ -303,6 +302,9 @@ jobs:
               print(f"::error title=Kernel Version::设备内核版本格式不对：「{dev}」，请填写如 6.1.141")
               sys.exit(1)
           dev = m.group()
+          if not re.search(r"\d+(?:\.\d+){2,3}", os.environ.get("DEVICE_FIRMWARE", "")):
+              print(f"::error title=OS Version::系统版本格式不对：「{os.environ.get('DEVICE_FIRMWARE', '')}」，请填写如 16.0.2.402")
+              sys.exit(1)
           def skip(why):
               print(f"::notice title=Kernel Version::{why}，将在拉取源码后再核对")
               sys.exit(0)
@@ -407,8 +409,7 @@ jobs:
           open(sys.argv[1], "w", encoding="utf-8", newline="").write(text)
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
               f.write(f"SOURCE_FIRMWARE={label}\n")
-          hint = "" if want or len(cands) == 1 else f"；可选系统版本：{'，'.join(c[1] for c in cands)}，填「系统版本」可选最接近的一次"
-          print(f"::warning title=Kernel Version::最新源码内核 {src} 与设备 {dev} 不一致，已改用固件 {label} 的源码（内核 {dev}）{hint}")
+          print(f"::warning title=Kernel Version::最新源码内核 {src} 与设备 {dev} 不一致，已改用系统版本 {label} 的源码（内核 {dev}）")
           PY
 
       - name: Stash Manifests
@@ -681,7 +682,7 @@ jobs:
           echo "::notice title=Kernel Version::本次源码内核版本 $SHOW_VERSION，刷入前请确认与设备一致（设置-关于本机-版本信息-内核版本），不一致可能无法开机"
           echo "### 内核版本 / Kernel version: \`$SHOW_VERSION\`" >> $GITHUB_STEP_SUMMARY
           if [ -n "$SOURCE_FIRMWARE" ]; then
-            echo "源码使用固件 $SOURCE_FIRMWARE 的版本（最新源码内核与设备不一致）。" >> $GITHUB_STEP_SUMMARY
+            echo "源码使用系统版本 $SOURCE_FIRMWARE 的版本（最新源码内核与设备不一致）。" >> $GITHUB_STEP_SUMMARY
           fi
           echo "刷入前请确认与设备一致（设置-关于本机-版本信息-内核版本），不一致可能无法开机。" >> $GITHUB_STEP_SUMMARY
 
