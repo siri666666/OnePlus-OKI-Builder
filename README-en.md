@@ -8,7 +8,7 @@ Build OnePlus / OPPO / realme OKI kernels online with GitHub Actions: official O
 
 - Sources pulled from OnePlus' official `kernel_manifest`
 - SukiSU Ultra + SUSFS, with KPM / KPN
-- Optional: BBG partition write protection, Unicode bypass fix, Re-Kernel, DroidSpaces, ZRAM (LZ4KD etc.)
+- Optional: BBG partition write protection, Unicode bypass fix, ZRAM (LZ4KD etc.)
 - Auto-fixes a known source bug: on sm8650 Android 16 sources, a duplicate `test_task_ux` export makes the device bootloop
 - Upstream fixes for known 6.1 security bugs (CVE-2026-43284, 43499, 64560, 98260) are applied automatically and skipped if the source already has them, see [patches/security](patches/security)
 - The source kernel version is shown at the top of the run page
@@ -40,7 +40,7 @@ Please report problems in this repository's [issues](../../issues) with the run 
 ## Credits
 
 - Build workflow modified from [Numbersf/Action-Build](https://github.com/Numbersf/Action-Build) by Numbersf, under its [LICENSE](LICENSE)
-- [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra), [susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu), [AnyKernel3](https://github.com/osm0sis/AnyKernel3), [Baseband-guard](https://github.com/vc-teahouse/Baseband-guard), [Re-Kernel](https://github.com/Sakion-Team/Re-Kernel) and others
+- [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra), [susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu), [AnyKernel3](https://github.com/osm0sis/AnyKernel3), [Baseband-guard](https://github.com/vc-teahouse/Baseband-guard) and others
 
 ## Disclaimer
 

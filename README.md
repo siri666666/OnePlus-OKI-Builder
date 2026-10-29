@@ -8,7 +8,7 @@
 
 - 按一加官方 `kernel_manifest` 拉取源码，机型下拉框附中文机型名
 - SukiSU Ultra + SUSFS，内核模块方案可选 KPM / KPN
-- 可选功能：BBG 关键分区写入保护、Unicode 绕过修复、Re-Kernel、DroidSpaces、ZRAM（LZ4KD 等）
+- 可选功能：BBG 关键分区写入保护、Unicode 绕过修复、ZRAM（LZ4KD 等）
 - 自动修复已知源码问题：sm8650 Android 16 源码重复导出 `test_task_ux`，导致刷入后开机即崩
 - 6.1 内核自动打上已知安全漏洞的上游修复（CVE-2026-43284、43499、64560、98260），源码已修复的会自动跳过，见 [patches/security](patches/security)
 - 构建页面顶部直接显示源码内核版本
@@ -41,7 +41,7 @@
 ## 致谢
 
 - 构建流程基于 [Numbersf/Action-Build](https://github.com/Numbersf/Action-Build) 修改，原作者 Numbersf，遵循其 [LICENSE](LICENSE)
-- [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra)、[susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu)、[AnyKernel3](https://github.com/osm0sis/AnyKernel3)、[Baseband-guard](https://github.com/vc-teahouse/Baseband-guard)、[Re-Kernel](https://github.com/Sakion-Team/Re-Kernel) 等项目
+- [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra)、[susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu)、[AnyKernel3](https://github.com/osm0sis/AnyKernel3)、[Baseband-guard](https://github.com/vc-teahouse/Baseband-guard) 等项目
 
 ## 免责声明
 
