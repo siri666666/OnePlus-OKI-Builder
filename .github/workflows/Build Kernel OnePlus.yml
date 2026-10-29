@@ -145,7 +145,7 @@ on:
 
 jobs:
   build:
-    name: ${{ github.event.inputs.FILE }}｜内核 ${{ github.event.inputs.DEVICE_KERNEL }}${{ (github.event.inputs.KPM != 'N/A' || github.event.inputs.SUSFS != 'false' || github.event.inputs.LSM_BBG == 'true') && '｜' || '' }}${{ github.event.inputs.KPM != 'N/A' && format('{0} ', github.event.inputs.KPM) || '' }}${{ github.event.inputs.SUSFS != 'false' && 'SUSFS ' || '' }}${{ github.event.inputs.LSM_BBG == 'true' && 'BBG' || '' }}
+    name: ${{ github.event.inputs.FILE }}｜内核 ${{ github.event.inputs.DEVICE_KERNEL }}｜OS ${{ github.event.inputs.DEVICE_FIRMWARE }}
     runs-on: ubuntu-latest
     env:
       CCACHE_COMPILERCHECK: "none"
