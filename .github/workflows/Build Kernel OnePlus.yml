@@ -87,18 +87,9 @@ on:
           - KPM
           - KPN
           - N/A
-      SUSFS_MODULE:
-        type: choice
-        description: "附带 SUSFS 模块（Release=正式版；CI=最新测试版；N/A=不附带）"
-        required: false
-        default: N/A
-        options:
-          - CI
-          - Release
-          - N/A
       SUSFS_META:
         type: string
-        description: "SUSFS 版本，一般留空（留空=最新；填数字=往回退几个提交，如 3；填哈希=指定提交）"
+        description: "SUSFS 版本（SUSFS 每次都会编进内核），一般留空（留空=最新；填数字=往回退几个提交，如 3；填哈希=指定提交）"
         required: false
         default: ""
       SUSFS_DEV:
@@ -106,6 +97,15 @@ on:
         description: "SUSFS 开发分支（更新更快，可能不稳定）"
         required: false
         default: false
+      SUSFS_MODULE:
+        type: choice
+        description: "附带 SUSFS 模块，一般选 N/A（SukiSU 管理器已自带 SUSFS 配置，两个都装可能不开机）；Release=正式版；CI=最新测试版"
+        required: false
+        default: N/A
+        options:
+          - CI
+          - Release
+          - N/A
       SECURITY_FIXES:
         type: boolean
         description: "安全｜打安全补丁，已修复的自动跳过"
@@ -282,16 +282,21 @@ jobs:
           # 传递组合信息
           echo "value=${FILE_BASE}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Check Disguise Inputs
+      - name: Check Inputs
         env:
           SUFFIX: ${{ github.event.inputs.SUFFIX }}
           BUILD_TIME: ${{ github.event.inputs.BUILD_TIME }}
+          SUSFS_META: ${{ github.event.inputs.SUSFS_META }}
         run: |
           python3 - <<'PY'
           import os, re, sys
           suffix = os.environ.get("SUFFIX", "")
           build_time = os.environ.get("BUILD_TIME", "")
+          susfs = os.environ.get("SUSFS_META", "")
           ok = True
+          if susfs and not re.fullmatch(r"\d+|[0-9a-fA-F]{7,40}", susfs):
+              print(f"::error title=SUSFS::SUSFS 版本「{susfs}」不对，留空=最新，填数字=往回退几个提交，填哈希=指定提交")
+              ok = False
           if suffix:
               if suffix.startswith("-") or re.search(r"\s", suffix):
                   print(f"::error title=Kernel Suffix::内核后缀「{suffix}」不能以 - 开头或带空格，只填原厂内核版本里 androidXX- 后面的内容，如 8-g11d7ebe61a81-abogki537459655-4k")
@@ -893,7 +898,6 @@ jobs:
           echo "::endgroup::"
 
       - name: Apply Fake Patches
-        if: ${{ github.event.inputs.SUSFS_META != '-1' }}
         run: |
           kotlin "$GITHUB_WORKSPACE/kernel_workspace/Action-Build/scripts/PatchFakePatches.kts" apply "$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common"
 
@@ -902,32 +906,28 @@ jobs:
           FILE: ${{ env.FILE }}
         run: |
           cd kernel_workspace
-          if [ "${{ github.event.inputs.SUSFS_META }}" != "-1" ]; then
-            SUSFS_META="${{ github.event.inputs.SUSFS_META }}"
-            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}${{ github.event.inputs.SUSFS_DEV == 'true' && '-dev' || '' }}
-            cd susfs4ksu
-            if [ -n "$SUSFS_META" ]; then
-              if [[ "$SUSFS_META" =~ ^[0-9]+$ ]]; then
-                git checkout HEAD~$SUSFS_META
-              else
-                git checkout "$SUSFS_META"
-              fi
+          SUSFS_META="${{ github.event.inputs.SUSFS_META }}"
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}${{ github.event.inputs.SUSFS_DEV == 'true' && '-dev' || '' }}
+          cd susfs4ksu
+          if [ -n "$SUSFS_META" ]; then
+            if [[ "$SUSFS_META" =~ ^[0-9]+$ ]]; then
+              git checkout HEAD~$SUSFS_META
             else
-              echo "SUSFS_META 为空，使用最新上游 SUSFS"
+              git checkout "$SUSFS_META"
             fi
-            cd ..
+          else
+            echo "SUSFS_META 为空，使用最新上游 SUSFS"
           fi
+          cd ..
           if [ "${{ github.event.inputs.LZ4_UPDATE }}" = "true" ]; then
             git clone https://github.com/siri666666/lz4_oplus.git
           fi
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
           cd kernel_platform
-          if [ "${{ github.event.inputs.SUSFS_META }}" != "-1" ]; then
-            echo "正在拉取susfs补丁"
-            cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch ./common/
-            cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
-            cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
-          fi
+          echo "正在拉取susfs补丁"
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch ./common/
+          cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
+          cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
 
           cd ./common
 
@@ -938,17 +938,14 @@ jobs:
             echo "fix_5.15_patch完成"
           fi
 
-          if [ "${{ github.event.inputs.SUSFS_META }}" != "-1" ]; then
-            echo "正在打susfs补丁"
-            kotlin "$GITHUB_WORKSPACE/kernel_workspace/Action-Build/scripts/PatchFakePatches.kts" context "$PWD" "$PWD/50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch"
-            patch -p1 < 50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch || true
-            echo "susfs_patch完成"
-          fi
+          echo "正在打susfs补丁"
+          kotlin "$GITHUB_WORKSPACE/kernel_workspace/Action-Build/scripts/PatchFakePatches.kts" context "$PWD" "$PWD/50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch"
+          patch -p1 < 50_add_susfs_in_gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch || true
+          echo "susfs_patch完成"
           source $REJ_CHECKER
           check_rejects .
 
       - name: Revert and Postfix Fake Patches
-        if: ${{ github.event.inputs.SUSFS_META != '-1' }}
         run: |
           kotlin "$GITHUB_WORKSPACE/kernel_workspace/Action-Build/scripts/PatchFakePatches.kts" postfix "$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common"
           kotlin "$GITHUB_WORKSPACE/kernel_workspace/Action-Build/scripts/PatchFakePatches.kts" revert "$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common"
@@ -1074,20 +1071,16 @@ jobs:
           fi
 
           # SUSFS配置
-          if [ "${{ github.event.inputs.SUSFS_META }}" != "-1" ]; then
-            set_config "CONFIG_KSU_SUSFS=y"
-            set_config "CONFIG_KSU_SUSFS_SUS_PATH=y"
-            set_config "CONFIG_KSU_SUSFS_SUS_MAP=y"
-            set_config "CONFIG_KSU_SUSFS_SUS_MOUNT=y"
-            set_config "CONFIG_KSU_SUSFS_SUS_KSTAT=y"
-            set_config "CONFIG_KSU_SUSFS_SPOOF_UNAME=y"
-            set_config "CONFIG_KSU_SUSFS_ENABLE_LOG=y"
-            set_config "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y"
-            set_config "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y"
-            set_config "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y"
-          else
-            set_config "CONFIG_KSU_SUSFS=n"
-          fi
+          set_config "CONFIG_KSU_SUSFS=y"
+          set_config "CONFIG_KSU_SUSFS_SUS_PATH=y"
+          set_config "CONFIG_KSU_SUSFS_SUS_MAP=y"
+          set_config "CONFIG_KSU_SUSFS_SUS_MOUNT=y"
+          set_config "CONFIG_KSU_SUSFS_SUS_KSTAT=y"
+          set_config "CONFIG_KSU_SUSFS_SPOOF_UNAME=y"
+          set_config "CONFIG_KSU_SUSFS_ENABLE_LOG=y"
+          set_config "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y"
+          set_config "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y"
+          set_config "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y"
 
           # TMPFS配置*
           set_config "CONFIG_TMPFS_XATTR=y"
@@ -1425,7 +1418,7 @@ jobs:
           cp Image "${GITHUB_WORKSPACE}/AnyKernel3/Image"
 
       - name: Download Latest SUSFS Module from CI
-        if: ${{ github.event.inputs.SUSFS_MODULE == 'CI' && github.event.inputs.SUSFS_META != '-1' }}
+        if: ${{ github.event.inputs.SUSFS_MODULE == 'CI' }}
         continue-on-error: true
         run: |
           LATEST_RUN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -1445,7 +1438,7 @@ jobs:
           fi
 
       - name: Download Latest SUSFS Module from Release
-        if: ${{ github.event.inputs.SUSFS_MODULE == 'Release' && github.event.inputs.SUSFS_META != '-1' }}
+        if: ${{ github.event.inputs.SUSFS_MODULE == 'Release' }}
         continue-on-error: true
         run: |
           wget -O ksu_module_susfs_1.5.2+_Release.zip https://github.com/sidex15/ksu_module_susfs/releases/latest/download/ksu_module_susfs_1.5.2+.zip
