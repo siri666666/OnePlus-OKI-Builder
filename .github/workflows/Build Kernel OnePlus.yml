@@ -67,11 +67,11 @@ on:
           - "一加 Open 海外折叠屏（oneplus_open_b）"
       DEVICE_KERNEL:
         type: string
-        description: "机型当前内核版本（Device kernel version），必填：设置-关于本机-版本信息-内核版本，如 6.1.141；-1=不核对"
+        description: "当前内核版本（Kernel version），必填：设置-关于本机-版本信息-内核版本，如 6.6.89；-1=不核对"
         required: true
       DEVICE_FIRMWARE:
         type: string
-        description: "机型当前系统版本（OS version），选填：版本信息-版本号里的数字，如 16.0.2.402；最新源码内核对不上时用它挑最接近的旧源码"
+        description: "当前系统版本（OS version），选填：版本信息-版本号里的数字，如 16.0.2.402；内核对不上时用它挑最接近的旧源码"
         required: false
         default: ""
       KPM:
@@ -92,6 +92,21 @@ on:
           - CI
           - Release
           - N/A
+      KSU_META:
+        type: string
+        description: "Root｜KSU 分支（KSU branches），格式：管理器/内置/标识/提交"
+        required: false
+        default: "main/builtin/OnePlus-OKI/"
+      SUSFS_META:
+        type: string
+        description: "Root｜回退 SUSFS（SUSFS rollback），填哈希或次数，-1=不加"
+        required: false
+        default: ""
+      SUSFS_DEV:
+        type: boolean
+        description: "Root｜SUSFS 开发分支（SUSFS dev branch）"
+        required: false
+        default: false
       SECURITY_FIXES:
         type: boolean
         description: "安全｜打安全补丁（Security fixes），已修复的自动跳过"
@@ -112,21 +127,6 @@ on:
         description: "功能｜ZRAM，格式：开关/算法/字节数"
         required: false
         default: "0/lz4kd/8589934592"
-      FAST_BUILD:
-        type: boolean
-        description: "构建｜极速构建（Fast build）"
-        required: false
-        default: true
-      BUILD_NOCACHE:
-        type: boolean
-        description: "构建｜本次不用缓存（No cache）"
-        required: false
-        default: false
-      SPACE_NOCLEAN:
-        type: boolean
-        description: "构建｜跳过磁盘清理（Skip disk cleanup）"
-        required: false
-        default: false
       SUFFIX:
         type: string
         description: "伪装｜内核后缀（Kernel suffix），空=随机，-1=不加"
@@ -141,19 +141,19 @@ on:
         description: "伪装｜内核小版本号（SUBLEVEL），空=不改"
         required: false
         default: ""
-      KSU_META:
-        type: string
-        description: "高级｜KSU 分支（KSU branches），格式：管理器/内置/标识/提交"
-        required: false
-        default: "main/builtin/OnePlus-OKI/"
-      SUSFS_META:
-        type: string
-        description: "高级｜回退 SUSFS（SUSFS rollback），填哈希或次数，-1=不加"
-        required: false
-        default: ""
-      SUSFS_DEV:
+      FAST_BUILD:
         type: boolean
-        description: "高级｜使用 SUSFS 开发分支（SUSFS dev branch）"
+        description: "构建｜极速构建（Fast build）"
+        required: false
+        default: true
+      BUILD_NOCACHE:
+        type: boolean
+        description: "构建｜本次不用缓存（No cache）"
+        required: false
+        default: false
+      SPACE_NOCLEAN:
+        type: boolean
+        description: "构建｜跳过磁盘清理（Skip disk cleanup）"
         required: false
         default: false
 
