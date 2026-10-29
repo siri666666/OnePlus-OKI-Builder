@@ -76,7 +76,7 @@ on:
         default: ""
       KPM:
         type: choice
-        description: "Root｜内核模块"
+        description: "KernelPatch 补丁，N/A=不打"
         required: false
         default: N/A
         options:
@@ -85,7 +85,7 @@ on:
           - N/A
       SUSFS_CI:
         type: choice
-        description: "Root｜附带 SUSFS 模块"
+        description: "附带 SUSFS 模块"
         required: false
         default: N/A
         options:
@@ -94,17 +94,17 @@ on:
           - N/A
       KSU_META:
         type: string
-        description: "Root｜KSU 分支，格式：管理器/内置/标识/提交"
+        description: "KSU 分支，格式：管理器/内置/标识/提交"
         required: false
         default: "main/builtin/OnePlus-OKI/"
       SUSFS_META:
         type: string
-        description: "Root｜回退 SUSFS，填哈希或次数，-1=不加"
+        description: "回退 SUSFS，填哈希或次数，-1=不加"
         required: false
         default: ""
       SUSFS_DEV:
         type: boolean
-        description: "Root｜SUSFS 开发分支"
+        description: "SUSFS 开发分支"
         required: false
         default: false
       SECURITY_FIXES:
