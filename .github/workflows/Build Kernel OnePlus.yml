@@ -123,7 +123,7 @@ on:
         default: true
       SUFFIX:
         type: string
-        description: "伪装｜内核后缀，建议填原厂内核版本 androidXX- 后面所有内容；留空=随机；-1=不改"
+        description: "伪装｜内核后缀，建议填原厂的内核版本里 androidXX- 后面所有内容；留空=随机；-1=不改"
         required: false
         default: ""
       BUILD_TIME:
