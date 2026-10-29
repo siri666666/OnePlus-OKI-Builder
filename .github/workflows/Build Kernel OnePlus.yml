@@ -67,9 +67,8 @@ on:
           - "一加 Open 海外折叠屏（oneplus_open_b）"
       DEVICE_KERNEL:
         type: string
-        description: "当前内核版本（设置-关于本机-版本信息-内核版本），如 6.6.89；-1=不核对"
+        description: "当前内核版本（设置-关于本机-版本信息-内核版本），如 6.6.89"
         required: true
-        default: "-1"
       DEVICE_FIRMWARE:
         type: string
         description: "当前系统版本，选填：版本信息-版本号里的数字，如 16.0.2.402；内核对不上时用它挑最接近的旧源码"
@@ -299,8 +298,6 @@ jobs:
           import json, os, re, sys, urllib.parse, urllib.request
           import xml.etree.ElementTree as ET
           dev = "".join(os.environ.get("DEVICE_KERNEL", "").split())
-          if dev == "-1":
-              sys.exit(0)
           m = re.match(r"\d+\.\d+\.\d+", dev)
           if not m:
               print(f"::error title=Kernel Version::设备内核版本格式不对：「{dev}」，请填写如 6.1.141")
@@ -642,18 +639,16 @@ jobs:
 
           # 与用户填写的设备内核版本核对，不一致直接停止，避免刷入后无法开机
           DEVICE_KERNEL=$(printf '%s' "$DEVICE_KERNEL" | tr -d '[:space:]')
-          if [ "$DEVICE_KERNEL" != "-1" ]; then
-            DEV_VER=$(printf '%s' "$DEVICE_KERNEL" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || true)
-            if [ -z "$DEV_VER" ]; then
-              echo "::error title=Kernel Version::设备内核版本格式不对：「$DEVICE_KERNEL」，请填写如 6.1.141"
-              exit 1
-            fi
-            if [ "$DEV_VER" != "$ORIG_VERSION" ]; then
-              echo "::error title=Kernel Version::源码内核版本 $ORIG_VERSION 与设备 $DEV_VER 不一致，刷入可能无法开机，已停止构建"
-              exit 1
-            fi
-            echo "::notice title=Kernel Version::设备内核版本 $DEV_VER 与源码一致"
+          DEV_VER=$(printf '%s' "$DEVICE_KERNEL" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || true)
+          if [ -z "$DEV_VER" ]; then
+            echo "::error title=Kernel Version::设备内核版本格式不对：「$DEVICE_KERNEL」，请填写如 6.1.141"
+            exit 1
           fi
+          if [ "$DEV_VER" != "$ORIG_VERSION" ]; then
+            echo "::error title=Kernel Version::源码内核版本 $ORIG_VERSION 与设备 $DEV_VER 不一致，刷入可能无法开机，已停止构建"
+            exit 1
+          fi
+          echo "::notice title=Kernel Version::设备内核版本 $DEV_VER 与源码一致"
 
           # 强制修改 SUBLEVEL (内核等级)
           RESUBLEVEL="${{ github.event.inputs.RESUBLEVEL }}"
