@@ -78,7 +78,7 @@ on:
         type: choice
         description: "Root｜内核模块（Kernel module）"
         required: false
-        default: KPM
+        default: N/A
         options:
           - KPM
           - KPN
