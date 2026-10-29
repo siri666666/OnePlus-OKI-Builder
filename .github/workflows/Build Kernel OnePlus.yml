@@ -87,6 +87,15 @@ on:
           - KPM
           - KPN
           - N/A
+      SUSFS_MODULE:
+        type: choice
+        description: "附带 SUSFS 模块（Release=正式版；CI=最新测试版；N/A=不附带）"
+        required: false
+        default: N/A
+        options:
+          - CI
+          - Release
+          - N/A
       SUSFS_META:
         type: string
         description: "SUSFS 版本，一般留空（留空=最新；填数字=往回退几个提交，如 3；填哈希=指定提交）"
@@ -97,15 +106,6 @@ on:
         description: "SUSFS 开发分支（更新更快，可能不稳定）"
         required: false
         default: false
-      SUSFS_MODULE:
-        type: choice
-        description: "附带 SUSFS 模块（Release=正式版；CI=最新测试版；N/A=不附带）"
-        required: false
-        default: N/A
-        options:
-          - CI
-          - Release
-          - N/A
       SECURITY_FIXES:
         type: boolean
         description: "安全｜打安全补丁，已修复的自动跳过"
