@@ -1578,14 +1578,22 @@ jobs:
           OUT_DIR="${GITHUB_WORKSPACE}/kernel_workspace/kernel_platform/out/Final-Image-Find"
           cd "${OUT_DIR}"
           if [ "${{ github.event.inputs.KPM }}" = "KPM" ]; then
-            cp "${KPM_DIR}/patch_linux" .
-            chmod +x patch_linux
-            ./patch_linux
+            # SukiSU_patch 的 patch_linux 自 2026-10-18 起内置 kpimg 为空（0x10 字节、版本 0），修补后入口跳到空白处、开机即崩；改用同目录的 kptools-linux + kpimg
+            cp "${KPM_DIR}/kptools-linux" "${KPM_DIR}/kpimg" .
+            chmod +x ./kptools-linux
+            ./kptools-linux -p -i ./Image -k ./kpimg -o ./oImage | tee kpx.log
           else
             cp "${KPN_DIR}/kptools-linux" "${KPN_DIR}/kpimg-linux" .
             chmod +x ./kptools-linux
-            ./kptools-linux -p -i ./Image -k ./kpimg-linux -o ./oImage
+            ./kptools-linux -p -i ./Image -k ./kpimg-linux -o ./oImage | tee kpx.log
           fi
+          KPIMG_SIZE=$(grep -oE 'kpimg: 0x[0-9a-f]+,0x[0-9a-f]+' kpx.log | head -n1 | sed 's/.*,//')
+          KPIMG_VER=$(grep -oE 'kpimg version: [0-9a-f]+' kpx.log | head -n1 | awk '{print $3}')
+          if [ -z "$KPIMG_SIZE" ] || [ $((KPIMG_SIZE)) -lt 65536 ] || [ "$KPIMG_VER" = "0" ]; then
+            echo "❌ 修补写入的 kpimg 异常（大小 ${KPIMG_SIZE:-未知}，版本 ${KPIMG_VER:-未知}），刷入会开机即崩，停止构建"
+            exit 1
+          fi
+          echo "✅ kpimg 已写入：大小 $KPIMG_SIZE，版本 $KPIMG_VER"
           mv -f oImage Image
           cp Image "${GITHUB_WORKSPACE}/AnyKernel3/Image"
 
