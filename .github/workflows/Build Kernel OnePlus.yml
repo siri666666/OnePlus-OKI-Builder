@@ -73,39 +73,39 @@ on:
         type: string
         description: "当前系统版本（设置-关于本机-版本信息-版本号），如 16.0.2.402；内核对不上时用它挑最接近的旧源码"
         required: true
+      KSU_META:
+        type: string
+        description: "SukiSU 版本，一般不用改（格式：管理器分支/内置分支/显示标识/提交哈希，提交留空=最新）"
+        required: false
+        default: "main/builtin/OnePlus-OKI/"
       KPM:
         type: choice
-        description: "KernelPatch 补丁，N/A=不打"
+        description: "KernelPatch 补丁（KPM=SukiSU 自带；KPN=另一种实现；N/A=不打）"
         required: false
         default: N/A
         options:
           - KPM
           - KPN
           - N/A
+      SUSFS_META:
+        type: string
+        description: "SUSFS 版本，一般留空（留空=最新；填数字=往回退几个提交，如 3；填哈希=指定提交）"
+        required: false
+        default: ""
+      SUSFS_DEV:
+        type: boolean
+        description: "SUSFS 开发分支（更新更快，可能不稳定）"
+        required: false
+        default: false
       SUSFS_MODULE:
         type: choice
-        description: "附带 SUSFS 模块"
+        description: "附带 SUSFS 模块（Release=正式版；CI=最新测试版；N/A=不附带）"
         required: false
         default: N/A
         options:
           - CI
           - Release
           - N/A
-      KSU_META:
-        type: string
-        description: "KSU 分支，格式：管理器/内置/标识/提交"
-        required: false
-        default: "main/builtin/OnePlus-OKI/"
-      SUSFS_META:
-        type: string
-        description: "回退 SUSFS，填哈希或次数，-1=不加"
-        required: false
-        default: ""
-      SUSFS_DEV:
-        type: boolean
-        description: "SUSFS 开发分支"
-        required: false
-        default: false
       SECURITY_FIXES:
         type: boolean
         description: "安全｜打安全补丁，已修复的自动跳过"
@@ -123,21 +123,21 @@ on:
         default: false
       ZRAM:
         type: string
-        description: "功能｜ZRAM，格式：开关/算法/字节数"
+        description: "功能｜ZRAM，一般不用开（格式：开关/算法/容量字节，如 1/lz4kd/8589934592=开启、lz4kd、8G；开头为 0=不开）"
         required: false
         default: "0/lz4kd/8589934592"
       SUFFIX:
         type: string
-        description: "伪装｜内核后缀，空=随机，-1=不加"
+        description: "伪装｜内核后缀（留空=随机仿原厂；-1=保留源码自带的；也可照原厂内核版本 android15- 后面那段填）"
         required: false
         default: ""
       BUILD_TIME:
         type: string
-        description: "伪装｜构建时间，F=当前，-1=不改"
+        description: "伪装｜构建时间（F=实际构建时间；-1=不改；也可照原厂 uname -v 里的时间填）"
         required: false
         default: "Wed Jul 15 11:18:49 UTC 2026"
       RESUBLEVEL:
-        description: "伪装｜内核小版本号（SUBLEVEL），空=不改"
+        description: "伪装｜内核小版本号（SUBLEVEL），只改显示，一般留空"
         required: false
         default: ""
       FAST_BUILD:
