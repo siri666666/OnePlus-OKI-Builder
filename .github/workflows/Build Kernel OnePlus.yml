@@ -121,11 +121,6 @@ on:
         description: "安全｜Unicode 零宽字符路径修复"
         required: false
         default: true
-      ZRAM:
-        type: string
-        description: "功能｜ZRAM，一般不用开（格式：开关/算法/容量字节，如 1/lz4kd/8589934592=开启、lz4kd、8G；开头为 0=不开）"
-        required: false
-        default: "0/lz4kd/8589934592"
       SUFFIX:
         type: string
         description: "伪装｜内核后缀（留空=随机仿原厂；-1=保留源码自带的；也可照原厂内核版本 android15- 后面那段填）"
@@ -158,7 +153,7 @@ on:
 
 jobs:
   build:
-    name: ${{ github.event.inputs.FAST_BUILD == 'true' && ' [FAST]' || '' }}${{ contains(github.event.inputs.FILE, '_aosp') && ' [AOSP]' || '' }}${{ github.event.inputs.KPM == 'KPM' && ' [KPM]' || github.event.inputs.KPM == 'KPN' && ' [KPN]' || '' }}${{ github.event.inputs.LSM_BBG == 'true' && ' [BBG]' || '' }}${{ startsWith(github.event.inputs.ZRAM, '1/') && ' [ZRAM]' || '' }}${{ github.event.inputs.LZ4_UPDATE == 'true' && ' [LZ4UPD]' || '' }}For ${{ github.event.inputs.FILE }} ${{ github.event.inputs.SUFFIX }}
+    name: ${{ github.event.inputs.FAST_BUILD == 'true' && ' [FAST]' || '' }}${{ contains(github.event.inputs.FILE, '_aosp') && ' [AOSP]' || '' }}${{ github.event.inputs.KPM == 'KPM' && ' [KPM]' || github.event.inputs.KPM == 'KPN' && ' [KPN]' || '' }}${{ github.event.inputs.LSM_BBG == 'true' && ' [BBG]' || '' }}${{ github.event.inputs.LZ4_UPDATE == 'true' && ' [LZ4UPD]' || '' }}For ${{ github.event.inputs.FILE }} ${{ github.event.inputs.SUFFIX }}
     runs-on: ubuntu-latest
     env:
       CCACHE_COMPILERCHECK: "none"
@@ -458,7 +453,6 @@ jobs:
           echo "Selected KPM: ${{ github.event.inputs.KPM }}"
           echo "Custom SUSFS_META: ${{ github.event.inputs.SUSFS_META }}"
           echo "Custom KSU_META: ${{ github.event.inputs.KSU_META }}"
-          echo "Selected ZRAM: ${{ github.event.inputs.ZRAM }}"
           echo "Selected LSM_BBG: ${{ github.event.inputs.LSM_BBG }}"
           echo "Selected SUSFS_DEV: ${{ github.event.inputs.SUSFS_DEV }}"
           echo "Selected FAST_BUILD: ${{ github.event.inputs.FAST_BUILD }}"
@@ -912,14 +906,6 @@ jobs:
             cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
           fi
 
-          if [[ "${{ github.event.inputs.ZRAM }}" == 1* ]]; then
-            echo "正在拉取zram补丁"
-            cp -r ../SukiSU_patch/other/zram/lz4k/include/linux/* ./common/include/linux/
-            cp -r ../SukiSU_patch/other/zram/lz4k/lib/* ./common/lib/
-            cp -r ../SukiSU_patch/other/zram/lz4k/crypto/* ./common/crypto/
-            cp -r ../SukiSU_patch/other/zram/lz4k_oplus ./common/lib/
-          fi
-
           cd ./common
 
           if [ "$KMI" == "android13-5.15" ] && [ "$SUBLEVEL" -lt 123 ]; then
@@ -983,34 +969,6 @@ jobs:
           LZ4_REPO="${GITHUB_WORKSPACE}/kernel_workspace/lz4_oplus"
           cd kernel_workspace/kernel_platform/common
           . "${LZ4_REPO}/apply_lz4_oplus.sh"
-
-      - name: Apply ZRAM
-        if: startsWith(github.event.inputs.ZRAM, '1/')
-        run: |
-          ZRAM="${{ github.event.inputs.ZRAM }}"
-          if [[ "$(grep -o '/' <<< "$ZRAM" | wc -l)" -lt 2 ]]; then
-            echo "错误: ZRAM 参数缺少必要的分隔符 '/'，格式应为: 总开关0关1开/算法名(前面输入0时无效)/大小(前面输入0时无效)"
-            exit 10
-          fi
-          # 解析字段：开关状态 / 算法名 / 大小
-          IFS='/' read -r ZRAM_SWSTA ZRAM_ALGO ZRAM_SIZE <<< "$ZRAM"
-          echo "ZRAM_ALGO=$ZRAM_ALGO" >> $GITHUB_ENV
-          echo "ZRAM_ALGO_U=${ZRAM_ALGO^^}" >> $GITHUB_ENV
-          echo "ZRAM_SIZE=$ZRAM_SIZE" >> $GITHUB_ENV
-
-          PATCH_DIR="${GITHUB_WORKSPACE}/kernel_workspace/SukiSU_patch/other/zram/zram_patch/${{ env.KERNEL_VERSION }}"
-          cd kernel_workspace/kernel_platform/common
-          if [[ "$KERNEL_VERSION" == "5.10" && "${CPU}" == mt* ]]; then
-            sed -i 's/select CRYPTO_LZO/depends on CRYPTO_LZO/' ./mm/oplus_mm/hybridswap_zram/Kconfig
-          fi
-          echo "正在打lz4kd补丁"
-          patch -p1 -F 3 < "${PATCH_DIR}/lz4kd.patch" || true
-          echo 'lz4kd_patch完成'
-          echo "正在打lz4k_oplus补丁"
-          patch -p1 -F 3 < "${PATCH_DIR}/lz4k_oplus.patch" || true
-          echo 'lz4k_oplus_patch完成'
-          source $REJ_CHECKER
-          check_rejects .
 
       - name: Fix Duplicate test_task_ux Export
         run: |
@@ -1111,16 +1069,6 @@ jobs:
           # TMPFS配置*
           set_config "CONFIG_TMPFS_XATTR=y"
           set_config "CONFIG_TMPFS_POSIX_ACL=y"
-
-          # ZRAM配置*
-          if [[ "${{ github.event.inputs.ZRAM }}" == 1* ]]; then
-            set_config "CONFIG_CRYPTO_LZ4HC=y"
-            set_config "CONFIG_CRYPTO_LZ4K=y"
-            set_config "CONFIG_CRYPTO_LZ4KD=y"
-            set_config "CONFIG_CRYPTO_842=y"
-            set_config "CONFIG_CRYPTO_LZ4K_OPLUS=y"
-            set_config "CONFIG_ZRAM_WRITEBACK=y"
-          fi
 
           # LSM配置*
           if [ "${{ github.event.inputs.LSM_BBG }}" = "true" ]; then
@@ -1510,73 +1458,13 @@ jobs:
       - name: Set zip Suffix
         id: suffix
         run: |
-          echo "value=${{ env.ZRAM_ALGO_U && format('_{0}', env.ZRAM_ALGO_U) || '' }}${{ github.event.inputs.KPM == 'KPM' && '_KPM' || github.event.inputs.KPM == 'KPN' && '_KPN' || '' }}${{ github.event.inputs.LSM_BBG == 'true' && '_BBG' || '' }}_ILH${{ github.event.inputs.LZ4_UPDATE == 'true' && '_LZ4UPD' || '' }}" >> $GITHUB_OUTPUT
+          echo "value=${{ github.event.inputs.KPM == 'KPM' && '_KPM' || github.event.inputs.KPM == 'KPN' && '_KPN' || '' }}${{ github.event.inputs.LSM_BBG == 'true' && '_BBG' || '' }}_ILH${{ github.event.inputs.LZ4_UPDATE == 'true' && '_LZ4UPD' || '' }}" >> $GITHUB_OUTPUT
 
       - name: Upload AnyKernel3
         uses: actions/upload-artifact@v7
         with:
           name: AnyKernel3_SukiSUUltra_${{ env.KSUVER }}_${{ steps.extract_info.outputs.value }}(${{ env.CKERNEL_VERSION }})${{ steps.suffix.outputs.value }}
           path: ./AnyKernel3/*
-
-      - name: Extract and Process ZRAM Module
-        if: startsWith(github.event.inputs.ZRAM, '1/')
-        id: zram_find
-        run: |
-          set -e
-          ZRAM_ZIP="${GITHUB_WORKSPACE}/kernel_workspace/Action-Build/ZRAM.zip"
-
-          if [ ! -f "$ZRAM_ZIP" ]; then
-            echo "❌ 未找到 ZRAM.zip: $ZRAM_ZIP"
-            echo "upload=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          unzip "$ZRAM_ZIP" -d ZRAM-Module
-
-          CONFIG_PROP="ZRAM-Module/config.prop"
-          if [ -f "$CONFIG_PROP" ]; then
-            echo "修改 config.prop"
-            sed -i "s/^ZRAM_ALGO=.*/ZRAM_ALGO=${ZRAM_ALGO}/" "$CONFIG_PROP"
-            sed -i "s/^ZRAM_SIZE=.*/ZRAM_SIZE=${ZRAM_SIZE}/" "$CONFIG_PROP"
-            echo "ZRAM_ALGO=${ZRAM_ALGO}"
-            echo "ZRAM_SIZE=${ZRAM_SIZE}"
-          else
-            echo "❌ 未找到 config.prop"
-            echo "upload=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          target="./ZRAM-Module/zram/zram.ko"
-          echo "查找 zram.ko 模块文件..."
-          search_paths=(
-            "./kernel_workspace/kernel_platform/out"
-            "./kernel_workspace/device/qcom"
-          )
-          zram_path=""
-          for path in "${search_paths[@]}"; do
-            if [ -d "$path" ]; then
-              zram_path=$(find "$path" -type f -name "zram.ko" | head -n 1)
-              [ -n "$zram_path" ] && break
-            fi
-          done
-          if [ -z "$zram_path" ]; then
-            zram_path=$(find "./kernel_workspace" -type f -name "zram.ko" | head -n 1)
-          fi
-          if [ -n "$zram_path" ] && [ -f "$zram_path" ]; then
-            echo "✅ zram.ko file finally located at: $zram_path"
-            install -D "$zram_path" "$target"
-          else
-            echo "❌ 未找到 zram.ko 文件，可能是未支持的内核版本或构建失败"
-            echo "upload=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-      - name: Upload ZRAM Module
-        if: startsWith(github.event.inputs.ZRAM, '1/') && steps.zram_find.outputs.upload != 'false'
-        uses: actions/upload-artifact@v7
-        with:
-          name: ZRAM-Module_${{ env.KERNEL_VERSION }}_${{ steps.extract_info.outputs.value }}
-          path: ZRAM-Module/*
 
       - name: Check Cache Size Before Save
         if: ${{ github.event.inputs.BUILD_NOCACHE == 'false' }}

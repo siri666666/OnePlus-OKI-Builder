@@ -8,7 +8,7 @@ Build OnePlus / OPPO / realme OKI kernels online with GitHub Actions: official O
 
 - Sources pulled from OnePlus' official `kernel_manifest`
 - SukiSU Ultra + SUSFS, with KPM / KPN
-- Optional: BBG partition write protection, Unicode bypass fix, ZRAM (LZ4KD etc.)
+- Optional: BBG partition write protection, Unicode bypass fix
 - Auto-fixes a known source bug: on sm8650 Android 16 sources, a duplicate `test_task_ux` export makes the device bootloop
 - Upstream fixes for known 6.1 security bugs (CVE-2026-43284, 43499, 64560, 98260) are applied automatically and skipped if the source already has them, see [patches/security](patches/security)
 - The source kernel version is shown at the top of the run page
@@ -31,7 +31,6 @@ See [FILE.md](FILE.md) for device codes. Suffixes `_b` / `_v` / `_u` mean Androi
 1. The kernel version shown on the run page must match your device (Settings → About → Kernel version).
 2. Recommended: run [`tools/kernel_compat_check.py`](tools/kernel_compat_check.py) against your stock kernel and vendor modules. Any first-stage (vendor_boot) difference means a bootloop.
 3. Remove Magisk first.
-4. If ZRAM is enabled, install the ZRAM module before rebooting.
 
 ## Issues
 
