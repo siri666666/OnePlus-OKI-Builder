@@ -67,7 +67,7 @@ on:
           - "一加 Open 海外折叠屏（oneplus_open_b）"
       DEVICE_KERNEL:
         type: string
-        description: "当前内核版本：设置-关于本机-版本信息-内核版本，如 6.6.89；-1=不核对"
+        description: "当前内核版本（设置-关于本机-版本信息-内核版本，如 6.6.89）；-1=不核对"
         required: true
         default: "-1"
       DEVICE_FIRMWARE:
