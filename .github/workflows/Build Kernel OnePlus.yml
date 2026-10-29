@@ -83,7 +83,7 @@ on:
           - KPM
           - KPN
           - N/A
-      SUSFS_CI:
+      SUSFS_MODULE:
         type: choice
         description: "附带 SUSFS 模块"
         required: false
@@ -450,8 +450,8 @@ jobs:
           echo "Selected ANDROID_VERSION: ${{ env.ANDROID_VERSION }}"
           echo "Selected BUILD_METHOD: ${{ env.BUILD_METHOD }}"
           echo "Selected FILE: ${{ env.FILE }}"
-          echo "Selected SUSFS_CI: ${{ github.event.inputs.SUSFS_CI }}"
-          if [ "${{ github.event.inputs.SUSFS_CI }}" != "N/A" ]; then
+          echo "Selected SUSFS_MODULE: ${{ github.event.inputs.SUSFS_MODULE }}"
+          if [ "${{ github.event.inputs.SUSFS_MODULE }}" != "N/A" ]; then
             echo "::warning title=SUSFS Not Required::当前管理器已自带附加模块，无需启用 SUSFS 模块，强制启用可能导致不开机。"
           fi
           echo "Selected KPM: ${{ github.event.inputs.KPM }}"
@@ -1454,7 +1454,7 @@ jobs:
           cp Image "${GITHUB_WORKSPACE}/AnyKernel3/Image"
 
       - name: Download Latest SUSFS Module from CI
-        if: ${{ github.event.inputs.SUSFS_CI == 'CI' && github.event.inputs.SUSFS_META != '-1' }}
+        if: ${{ github.event.inputs.SUSFS_MODULE == 'CI' && github.event.inputs.SUSFS_META != '-1' }}
         continue-on-error: true
         run: |
           LATEST_RUN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -1474,7 +1474,7 @@ jobs:
           fi
 
       - name: Download Latest SUSFS Module from Release
-        if: ${{ github.event.inputs.SUSFS_CI == 'Release' && github.event.inputs.SUSFS_META != '-1' }}
+        if: ${{ github.event.inputs.SUSFS_MODULE == 'Release' && github.event.inputs.SUSFS_META != '-1' }}
         continue-on-error: true
         run: |
           wget -O ksu_module_susfs_1.5.2+_Release.zip https://github.com/sidex15/ksu_module_susfs/releases/latest/download/ksu_module_susfs_1.5.2+.zip
