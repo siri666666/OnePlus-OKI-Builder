@@ -107,16 +107,6 @@ on:
         description: "安全｜Unicode 零宽字符路径修复（Unicode bypass fix）"
         required: false
         default: false
-      NETFILTER:
-        type: boolean
-        description: "功能｜NETFILTER 网络扩展（Netfilter extensions）"
-        required: false
-        default: true
-      CCM:
-        type: boolean
-        description: "功能｜BBR 拥塞控制（BBR congestion control）"
-        required: false
-        default: true
       RE_KERNEL:
         type: boolean
         description: "功能｜Re-Kernel，配合墓碑使用"
@@ -486,8 +476,6 @@ jobs:
           echo "Custom KSU_META: ${{ github.event.inputs.KSU_META }}"
           echo "Selected ZRAM: ${{ github.event.inputs.ZRAM }}"
           echo "Selected LSM_BBG: ${{ github.event.inputs.LSM_BBG }}"
-          echo "Selected NETFILTER: ${{ github.event.inputs.NETFILTER }}"
-          echo "Selected CCM: ${{ github.event.inputs.CCM }}"
           echo "Selected SUSFS_DEV: ${{ github.event.inputs.SUSFS_DEV }}"
           echo "Selected FAST_BUILD: ${{ github.event.inputs.FAST_BUILD }}"
           echo "Selected SCHED_HMBIRD: ${{ github.event.inputs.SCHED_HMBIRD }}"
@@ -999,21 +987,6 @@ jobs:
           source $REJ_CHECKER
           check_rejects .
 
-      - name: Apply BBRv3
-        if: ${{ github.event.inputs.CCM == 'true' && env.KMI != 'android16-6.12' }}
-        run: |
-          PATCH_DIR="${GITHUB_WORKSPACE}/kernel_workspace/Action-Build/patches"
-          cd kernel_workspace/kernel_platform/common
-          patch -p1 < "${PATCH_DIR}/bbrv3/0001-net-tcp-backport-BBRv3-to-$KMI.patch"
-          if [ "$KMI" = "android12-5.10" ]; then
-            if ! grep -qF 'int proc_dou8vec_minmax(' ./include/linux/sysctl.h; then
-              patch -p1 < "${PATCH_DIR}/bbrv3/sysctl_add_proc_dou8vec_minmax.patch"
-              patch -p1 < "${PATCH_DIR}/bbrv3/sysctl_fix_data-races_in_proc_dou8vec_minmax.patch"
-            fi
-          fi
-          source $REJ_CHECKER
-          check_rejects .
-
       - name: Apply UNICODE_BYPASS
         if: ${{ github.event.inputs.UNICODE_BYPASS == 'true' }}
         run: |
@@ -1262,23 +1235,6 @@ jobs:
           set_config "CONFIG_TMPFS_XATTR=y"
           set_config "CONFIG_TMPFS_POSIX_ACL=y"
 
-          # BBR & ECN配置*
-          if [ "${{ github.event.inputs.CCM }}" = "true" ]; then
-            set_hide_config "CONFIG_TCP_CONG_ADVANCED=y"
-            set_config "CONFIG_TCP_CONG_BBR=y"
-            if [ "$KMI" != "android16-6.12" ]; then
-              set_config "CONFIG_TCP_CONG_BBR3=y"
-            fi
-            set_config "CONFIG_NET_SCH_FQ=y"
-            set_config "CONFIG_TCP_CONG_BIC=n"
-            set_config "CONFIG_TCP_CONG_WESTWOOD=n"
-            set_config "CONFIG_TCP_CONG_HTCP=n"
-            set_config "CONFIG_IP_ECN=y"
-            set_config "CONFIG_TCP_ECN=y"
-            set_config "CONFIG_IPV6_ECN=y"
-            set_config "CONFIG_IP_NF_TARGET_ECN=y"
-          fi
-
           # Re-Kernel配置*
           if [ "${{ github.event.inputs.RE_KERNEL }}" = "true" ]; then
             set_config "CONFIG_REKERNEL=y"
@@ -1314,43 +1270,6 @@ jobs:
             set_config "CONFIG_NETFILTER_XT_TARGET_REJECT=y"
             set_config "CONFIG_NETFILTER_XT_TARGET_LOG=y"
             set_config "CONFIG_NETFILTER_XT_MATCH_RECENT=y"
-          fi
-
-          # IPSET & IPv6_NAT & TTL配置*
-          if [ "${{ github.event.inputs.NETFILTER }}" = "true" ]; then
-            if [[ "$KERNEL_VERSION" != "6.12" && "${CPU}" != mt* ]]; then
-              set_config "CONFIG_BPF_STREAM_PARSER=y"
-            fi
-            set_config "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y"
-            set_config "CONFIG_NETFILTER_XT_SET=y"
-            set_config "CONFIG_IP_SET=y"
-            set_config "CONFIG_IP_SET_MAX=65534"
-            set_config "CONFIG_IP_SET_BITMAP_IP=y"
-            set_config "CONFIG_IP_SET_BITMAP_IPMAC=y"
-            set_config "CONFIG_IP_SET_BITMAP_PORT=y"
-            set_config "CONFIG_IP_SET_HASH_IP=y"
-            set_config "CONFIG_IP_SET_HASH_IPMARK=y"
-            set_config "CONFIG_IP_SET_HASH_IPPORT=y"
-            set_config "CONFIG_IP_SET_HASH_IPPORTIP=y"
-            set_config "CONFIG_IP_SET_HASH_IPPORTNET=y"
-            set_config "CONFIG_IP_SET_HASH_IPMAC=y"
-            set_config "CONFIG_IP_SET_HASH_MAC=y"
-            set_config "CONFIG_IP_SET_HASH_NETPORTNET=y"
-            set_config "CONFIG_IP_SET_HASH_NET=y"
-            set_config "CONFIG_IP_SET_HASH_NETNET=y"
-            set_config "CONFIG_IP_SET_HASH_NETPORT=y"
-            set_config "CONFIG_IP_SET_HASH_NETIFACE=y"
-            set_config "CONFIG_IP_SET_LIST_SET=y"
-            set_hide_config "CONFIG_IP6_NF_NAT=y"
-            set_config "CONFIG_IP6_NF_TARGET_MASQUERADE=y"
-            set_config "CONFIG_NETFILTER_XT_TARGET_HL=y"
-            set_config "CONFIG_IP_NF_TARGET_TTL=y"
-            set_config "CONFIG_IP6_NF_TARGET_HL=y"
-            set_config "CONFIG_NETFILTER_XT_MATCH_HL=y"
-            set_config "CONFIG_IP_NF_MATCH_TTL=y"
-            set_config "CONFIG_IP6_NF_MATCH_HL=y"
-            set_config "CONFIG_IP_NF_MANGLE=y"
-            set_config "CONFIG_IP6_NF_MANGLE=y"
           fi
 
           # 构建依赖项调整及优化

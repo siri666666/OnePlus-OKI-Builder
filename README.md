@@ -8,7 +8,7 @@
 
 - 按一加官方 `kernel_manifest` 拉取源码，机型下拉框附中文机型名
 - SukiSU Ultra + SUSFS，内核模块方案可选 KPM / KPN
-- 可选功能：BBG 关键分区写入保护、NETFILTER 网络扩展、BBRv1/BBRv3 拥塞控制、Unicode 绕过修复、Re-Kernel、DroidSpaces、ZRAM（LZ4KD 等）
+- 可选功能：BBG 关键分区写入保护、Unicode 绕过修复、Re-Kernel、DroidSpaces、ZRAM（LZ4KD 等）
 - 自动修复已知源码问题：sm8650 Android 16 源码重复导出 `test_task_ux`，导致刷入后开机即崩
 - 6.1 内核自动打上已知安全漏洞的上游修复（CVE-2026-43284、43499、64560、98260），源码已修复的会自动跳过，见 [patches/security](patches/security)
 - 构建页面顶部直接显示源码内核版本
