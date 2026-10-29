@@ -305,6 +305,49 @@ jobs:
           sys.exit(0 if ok else 1)
           PY
 
+      - name: Summarize Inputs
+        if: ${{ !cancelled() }}
+        env:
+          INPUTS: ${{ toJSON(github.event.inputs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          inputs = json.loads(os.environ.get("INPUTS") or "{}")
+          # 后缀、构建时间、SUSFS 版本用 Check Inputs 去掉首尾空白后的值
+          for k in ("SUFFIX", "BUILD_TIME", "SUSFS_META"):
+              if k in os.environ:
+                  inputs[k] = os.environ[k]
+          rows = [
+              ("机型", "FILE", None),
+              ("当前内核版本", "DEVICE_KERNEL", None),
+              ("当前系统版本", "DEVICE_FIRMWARE", None),
+              ("SukiSU 版本", "KSU_META", None),
+              ("KernelPatch 补丁", "KPM", None),
+              ("SUSFS", "SUSFS", None),
+              ("SUSFS 版本", "SUSFS_META", "最新"),
+              ("SUSFS 开发分支", "SUSFS_DEV", None),
+              ("打安全补丁", "SECURITY_FIXES", None),
+              ("BBG 关键分区写保护", "LSM_BBG", None),
+              ("Unicode 零宽字符路径修复", "UNICODE_BYPASS", None),
+              ("内核后缀", "SUFFIX", "随机"),
+              ("构建时间", "BUILD_TIME", "实际构建时间"),
+              ("极速构建", "FAST_BUILD", None),
+              ("本次不用缓存", "BUILD_NOCACHE", None),
+              ("跳过磁盘清理", "SPACE_NOCLEAN", None),
+          ]
+          def show(v, empty):
+              v = "" if v is None else str(v).lower() if isinstance(v, bool) else str(v)
+              if v in ("true", "false"):
+                  return "✅ 是" if v == "true" else "❌ 否"
+              if not v:
+                  return f"（留空：{empty}）" if empty else "（未填）"
+              return "`" + v.replace("`", "'").replace("|", "\\|") + "`"
+          out = ["### 本次构建选项", "", "| 选项 | 值 |", "|---|---|"]
+          out += [f"| {label} | {show(inputs.get(key), empty)} |" for label, key, empty in rows]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("\n".join(out) + "\n\n")
+          PY
+
       - name: Early Kernel Version Check
         env:
           DEVICE_KERNEL: ${{ github.event.inputs.DEVICE_KERNEL }}
