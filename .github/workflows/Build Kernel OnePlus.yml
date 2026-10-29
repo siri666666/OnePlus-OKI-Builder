@@ -123,14 +123,14 @@ on:
         default: true
       SUFFIX:
         type: string
-        description: "伪装｜内核后缀，建议填原厂的内核版本里 androidXX- 后面所有内容；留空=随机；-1=不改"
+        description: "伪装｜内核后缀，建议填原厂的内核版本里 androidXX- 后面所有内容；留空=随机"
         required: false
         default: ""
       BUILD_TIME:
         type: string
-        description: "伪装｜构建时间，建议填原厂的（刷机前在终端 App 运行 uname -v，或在电脑运行 adb shell uname -v，抄 PREEMPT 后面的时间，如 Tue Jun 30 05:53:43 UTC 2026）；留空=实际构建时间；-1=不改"
+        description: "伪装｜构建时间，建议填原厂的（刷机前在终端 App 运行 uname -v，或在电脑运行 adb shell uname -v，抄 PREEMPT 后面的时间，如 Tue Jun 30 05:53:43 UTC 2026）；留空=实际构建时间"
         required: false
-        default: "Wed Jul 15 11:18:49 UTC 2026"
+        default: ""
       RESUBLEVEL:
         description: "伪装｜内核小版本号（SUBLEVEL），只改显示，一般留空"
         required: false
@@ -281,6 +281,29 @@ jobs:
 
           # 传递组合信息
           echo "value=${FILE_BASE}_Android${ANDROID_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Check Disguise Inputs
+        env:
+          SUFFIX: ${{ github.event.inputs.SUFFIX }}
+          BUILD_TIME: ${{ github.event.inputs.BUILD_TIME }}
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          suffix = os.environ.get("SUFFIX", "")
+          build_time = os.environ.get("BUILD_TIME", "")
+          ok = True
+          if suffix:
+              if suffix.startswith("-") or re.search(r"\s", suffix):
+                  print(f"::error title=Kernel Suffix::内核后缀「{suffix}」不能以 - 开头或带空格，只填原厂内核版本里 androidXX- 后面的内容，如 8-g11d7ebe61a81-abogki537459655-4k")
+                  ok = False
+              elif re.match(r"\d+\.\d+\.\d+-android\d+-", suffix):
+                  print(f"::error title=Kernel Suffix::内核后缀填了整串内核版本，只填 androidXX- 后面的内容，如 {suffix.split('-', 2)[2]}")
+                  ok = False
+          if build_time and not re.fullmatch(r"[A-Z][a-z]{2} [A-Z][a-z]{2} [ \d]\d \d\d:\d\d:\d\d [A-Z]+ \d{4}", build_time):
+              print(f"::error title=Build Time::构建时间「{build_time}」格式不对，只填 uname -v 里 PREEMPT 后面的时间，如 Tue Jun 30 05:53:43 UTC 2026")
+              ok = False
+          sys.exit(0 if ok else 1)
+          PY
 
       - name: Early Kernel Version Check
         env:
@@ -708,7 +731,7 @@ jobs:
 
       # 自定义内核后缀
       - name: Custom Kernel Suffix if set
-        if: ${{ github.event.inputs.SUFFIX != '' && github.event.inputs.SUFFIX != '-1' }}
+        if: ${{ github.event.inputs.SUFFIX != '' }}
         run: |
           cd kernel_workspace/kernel_platform
           SUFFIX="${{ github.event.inputs.SUFFIX }}"
@@ -1090,7 +1113,6 @@ jobs:
 
       # Custom kernel build time, without adding #1 SMP PREEMPT 自定义内核构建时间，不要加入#1 SMP PREEMPT
       - name: Custom BUILD_TIME
-        if: ${{ github.event.inputs.BUILD_TIME != '-1' }}
         shell: bash
         run: |
           INPUT_TIME="${{ github.event.inputs.BUILD_TIME }}"
