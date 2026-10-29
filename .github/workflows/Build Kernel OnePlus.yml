@@ -71,7 +71,7 @@ on:
         required: true
       DEVICE_FIRMWARE:
         type: string
-        description: "当前系统版本，选填：版本信息-版本号里的数字，如 16.0.2.402；内核对不上时用它挑最接近的旧源码"
+        description: "当前系统版本（设置-关于本机-版本信息-版本号），如 16.0.2.402，选填；内核对不上时用它挑最接近的旧源码"
         required: false
         default: ""
       KPM:
