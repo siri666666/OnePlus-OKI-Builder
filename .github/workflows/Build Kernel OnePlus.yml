@@ -120,7 +120,7 @@ on:
         type: boolean
         description: "安全｜Unicode 零宽字符路径修复"
         required: false
-        default: false
+        default: true
       ZRAM:
         type: string
         description: "功能｜ZRAM，一般不用开（格式：开关/算法/容量字节，如 1/lz4kd/8589934592=开启、lz4kd、8G；开头为 0=不开）"
