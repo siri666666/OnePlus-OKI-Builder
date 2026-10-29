@@ -18,7 +18,7 @@
 ## 使用
 
 1. Fork 本仓库
-2. 进入 **Actions → Build All OnePlus Kernels → Run workflow**
+2. 进入 **Actions → 构建一加内核 → Run workflow**
 3. 选择机型和功能选项，开始构建
 4. 完成后在运行页面底部的 Artifacts 下载 `AnyKernel3_*.zip`
 

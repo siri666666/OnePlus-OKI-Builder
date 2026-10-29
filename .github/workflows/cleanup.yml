@@ -1,4 +1,4 @@
-name: Workflow and Cache Cleanup — Faster
+name: 清理运行记录和缓存
 
 on:
   workflow_dispatch:
@@ -7,9 +7,9 @@ on:
         type: choice
         description: '清理的工作流名称'
         required: true
-        default: 'Build All OnePlus Kernels'
+        default: '构建一加内核'
         options:
-          - Build All OnePlus Kernels
+          - 构建一加内核
           - Build TEST
           - Build TEST2
       cache_mode:

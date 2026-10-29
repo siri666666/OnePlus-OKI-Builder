@@ -17,7 +17,7 @@ Build OnePlus / OPPO / realme OKI kernels online with GitHub Actions: official O
 ## Usage
 
 1. Fork this repository
-2. **Actions → Build All OnePlus Kernels → Run workflow**
+2. **Actions → 构建一加内核 (Build OnePlus kernel) → Run workflow**
 3. Pick the device and options
 4. Download `AnyKernel3_*.zip` from the run's Artifacts
 

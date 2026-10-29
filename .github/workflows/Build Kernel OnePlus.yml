@@ -1,4 +1,4 @@
-name: Build All OnePlus Kernels
+name: 构建一加内核
 on:
   workflow_dispatch:
     inputs:
