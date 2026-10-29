@@ -282,16 +282,19 @@ jobs:
         run: |
           python3 - <<'PY'
           import os, re, sys
-          suffix = os.environ.get("SUFFIX", "")
-          build_time = os.environ.get("BUILD_TIME", "")
-          susfs = os.environ.get("SUSFS_META", "")
+          # 首尾空白多是复制时带上的，直接去掉；后续步骤统一用这里写入的 env.SUFFIX / BUILD_TIME / SUSFS_META
+          suffix = os.environ.get("SUFFIX", "").strip()
+          build_time = os.environ.get("BUILD_TIME", "").strip()
+          susfs = os.environ.get("SUSFS_META", "").strip()
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+              f.write(f"SUFFIX={suffix}\nBUILD_TIME={build_time}\nSUSFS_META={susfs}\n")
           ok = True
           if susfs and not re.fullmatch(r"\d+|[0-9a-fA-F]{7,40}", susfs):
               print(f"::error title=SUSFS::SUSFS 版本「{susfs}」不对，留空=最新，填数字=往回退几个提交，填哈希=指定提交")
               ok = False
           if suffix:
               if suffix.startswith("-") or re.search(r"\s", suffix):
-                  print(f"::error title=Kernel Suffix::内核后缀「{suffix}」不能以 - 开头或带空格，只填原厂内核版本里 androidXX- 后面的内容，如 8-g11d7ebe61a81-abogki537459655-4k")
+                  print(f"::error title=Kernel Suffix::内核后缀「{suffix}」不能以 - 开头或中间带空格，只填原厂内核版本里 androidXX- 后面的内容，如 8-g11d7ebe61a81-abogki537459655-4k")
                   ok = False
               elif re.match(r"\d+\.\d+\.\d+-android\d+-", suffix):
                   print(f"::error title=Kernel Suffix::内核后缀填了整串内核版本，只填 androidXX- 后面的内容，如 {suffix.split('-', 2)[2]}")
@@ -456,8 +459,8 @@ jobs:
 
       - name: Debug Show Selected Inputs
         env:
-          BUILD_TIME: ${{ github.event.inputs.BUILD_TIME }}
-          SUFFIX: ${{ github.event.inputs.SUFFIX }}
+          BUILD_TIME: ${{ env.BUILD_TIME }}
+          SUFFIX: ${{ env.SUFFIX }}
         run: |
           echo "------------------------------"
 
@@ -698,10 +701,10 @@ jobs:
 
       # 自定义内核后缀
       - name: Custom Kernel Suffix if set
-        if: ${{ github.event.inputs.SUFFIX != '' }}
+        if: ${{ env.SUFFIX != '' }}
         run: |
           cd kernel_workspace/kernel_platform
-          SUFFIX="${{ github.event.inputs.SUFFIX }}"
+          SUFFIX="${{ env.SUFFIX }}"
           FAST_BUILD="${{ github.event.inputs.FAST_BUILD }}"
 
           for f in ./common/scripts/setlocalversion ./"$KERNEL_REPOS"/scripts/setlocalversion ./external/dtc/scripts/setlocalversion; do
@@ -737,7 +740,7 @@ jobs:
 
       # 伪官方格式的随机后缀（仅在 SUFFIX 未设置时生效）*
       - name: Custom Kernel Random Suffix if empty
-        if: ${{ github.event.inputs.SUFFIX == '' }}
+        if: ${{ env.SUFFIX == '' }}
         run: |
           cd kernel_workspace/kernel_platform
           FAST_BUILD="${{ github.event.inputs.FAST_BUILD }}"
@@ -877,7 +880,7 @@ jobs:
         run: |
           cd kernel_workspace
           if [ "${{ github.event.inputs.SUSFS }}" != "false" ]; then
-            SUSFS_META="${{ github.event.inputs.SUSFS_META }}"
+            SUSFS_META="${{ env.SUSFS_META }}"
             git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ env.KANDROID_VERSION }}-${{ env.KERNEL_VERSION }}${{ github.event.inputs.SUSFS_DEV == 'true' && '-dev' || '' }}
             cd susfs4ksu
             if [ -n "$SUSFS_META" ]; then
@@ -1089,7 +1092,7 @@ jobs:
       - name: Custom BUILD_TIME
         shell: bash
         run: |
-          INPUT_TIME="${{ github.event.inputs.BUILD_TIME }}"
+          INPUT_TIME="${{ env.BUILD_TIME }}"
           if [[ -n "$INPUT_TIME" ]]; then
             DATESTR="$INPUT_TIME"
             echo "Using input BUILD_TIME: $DATESTR"
