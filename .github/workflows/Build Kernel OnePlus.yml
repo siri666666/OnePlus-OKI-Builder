@@ -75,7 +75,7 @@ on:
         required: true
       SIBLING_SOURCE:
         type: boolean
-        description: "源码｜借用同硬件机型源码（本机型源码里没有设备内核时，自动改用国行/外版同硬件机型的源码，如平板 Pro↔平板2 海外；可能有细微差异，刷入前备份原厂 boot）"
+        description: "源码｜借用国行/外版同款源码（你的内核比本机型公开的源码新时，自动拿同款另一个版本的源码来编，比如平板 Pro 国行用平板2 海外的；两边可能有细微差别，刷前备份原厂 boot）"
         required: false
         default: false
       KSU_META:
@@ -377,6 +377,10 @@ jobs:
           def fw_ver(label):
               m = re.search(r"\d+(?:\.\d+){2,3}", label or "")
               return tuple(map(int, m.group().split("."))) if m else None
+          def short(label):
+              # OPD2404_16.0.0.202(CN01) → 16.0.0.202
+              m = re.search(r"\d+(?:\.\d+){2,3}", label or "")
+              return m.group() if m else label
           def syncs(owner, name, branch):
               out = []
               for page in (1, 2, 3):
@@ -442,9 +446,9 @@ jobs:
               try:
                   hist = {n: h for n, o, r in projects if (h := syncs(o, n, r))}
               except Exception as e:
-                  return "fail", f"最新源码内核 {src}，查询源码历史失败：{e}", src
+                  return "fail", f"最新源码是 {src}，查历史版本时出错：{e}", src
               if not hist.get(proj.get("name")):
-                  return "fail", f"最新源码内核 {src}，该源码分支没有旧固件的提交可选", src
+                  return "fail", f"只有最新源码 {src}，没有历史版本可选", src
               # 某仓库在某固件时的状态 = 不晚于该固件的最近一次同步（没改动的仓库那次不会提交）
               cands, table, kver = [], [], {}
               for fw, label in sorted({e[0]: e[1] for h in hist.values() for e in h}.items()):
@@ -456,12 +460,12 @@ jobs:
                       try:
                           kver[sha] = kernel_at(sha)
                       except Exception as e:
-                          return "fail", f"最新源码内核 {src}，读取 {label} 源码 Makefile 失败：{e}", src
-                  table.append(f"{label}={kver[sha]}")
+                          return "fail", f"最新源码是 {src}，读 {short(label)} 的源码时出错：{e}", src
+                  table.append(f"{short(label)} 是 {kver[sha]}")
                   if kver[sha] == dev:
                       cands.append((fw, label, pins))
               if not cands:
-                  return "fail", f"各固件的内核：{'，'.join(table)}", src
+                  return "fail", "，".join(table), src
               want = fw_ver(os.environ.get("DEVICE_FIRMWARE"))
               later = [c for c in cands if want and c[0] >= want]
               fw, label, pins = later[0] if later else cands[-1]
@@ -495,8 +499,8 @@ jobs:
               print(f"::warning title=Kernel Version::最新源码内核 {src} 与设备 {dev} 不一致，已改用系统版本 {info} 的源码（内核 {dev}）")
               sys.exit(0)
 
-          # 本机型源码里没有设备内核时，按勾选借用国行/外版同硬件机型的源码；借用后后续步骤的 FILE 都指向它，产物名仍用所选机型
-          detail = [f"{file}：{info}"]
+          # 本机型源码里没有设备内核时，按勾选借用国行/外版同款的源码；借用后后续步骤的 FILE 都指向它，产物名仍用所选机型
+          detail, hint = [f"{file} → {info}"], ""
           twin = TWINS.get(file)
           if twin and os.environ.get("SIBLING_SOURCE") == "true":
               tpath = f"{base}/{twin}.xml"
@@ -509,22 +513,23 @@ jobs:
                   tproj = None
               own = load(f"{base}/{file}.xml")[4].get("name")
               if tproj is None:
-                  detail.append(f"同硬件机型 {twin}：清单分支 {os.environ['MANIFEST_BRANCH']} 里没有它的源码清单")
+                  detail.append(f"同款 {twin} → 清单分支 {os.environ['MANIFEST_BRANCH']} 里没有它的清单")
               elif tproj.get("name") != own:
-                  detail.append(f"同硬件机型 {twin}：内核源码仓库不同（{tproj.get('name')}），不借用")
+                  detail.append(f"同款 {twin} 的内核仓库不一样（{tproj.get('name')}），没借")
               else:
                   state, info, src = resolve(tpath)
                   if state in ("ok", "pinned"):
                       put_env(FILE=twin, SOURCE_DEVICE=twin, **({"SOURCE_FIRMWARE": info} if state == "pinned" else {}))
-                      used = f"系统版本 {info} 的源码" if state == "pinned" else "最新源码"
-                      print(f"::warning title=Kernel Version::{file} 的源码里没有内核 {dev}，已借用同硬件机型 {twin} 的{used}（内核 {dev}）；国行/外版可能有细微差异，刷入前请备份原厂 boot")
+                      tag = f"系统版本 {short(info)}" if state == "pinned" else "最新源码"
+                      used = f"系统版本 {short(info)} 的源码" if state == "pinned" else "最新源码"
+                      print(f"::warning title=Kernel Version::{file} 的源码还没更新到内核 {dev}，这次用同款 {twin} 的{used}来编。两边可能有细微差别，刷之前记得备份原厂 boot")
                       with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
-                          f.write(f"### 源码借用自同硬件机型 `{twin}`（{used}）\n\n")
+                          f.write(f"### 这次用的是同款 `{twin}` 的源码（{tag}）\n\n")
                       sys.exit(0)
-                  detail.append(f"同硬件机型 {twin}：{info}")
+                  detail.append(f"同款 {twin} → {info}")
           elif twin:
-              detail.append(f"可勾选「借用同硬件机型源码」尝试 {twin} 的源码")
-          print(f"::error title=Kernel Version::源码里找不到设备内核 {dev}，刷入可能无法开机，已停止构建。{'；'.join(detail)}。可把设备更新到上面列出内核对应的固件，或等一加放出新源码后再构建")
+              hint = f"。勾上「借用国行/外版同款源码」可以试试同款 {twin} 的源码"
+          print(f"::error title=Kernel Version::没找到内核 {dev} 的源码，硬编出来很可能开不了机，所以先停了。目前有的：{'；'.join(detail)}。可以把设备升到其中一个系统版本再编，或者等一加更新源码{hint}")
           sys.exit(1)
           PY
 
