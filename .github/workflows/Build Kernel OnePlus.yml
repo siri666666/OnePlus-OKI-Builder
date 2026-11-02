@@ -73,6 +73,11 @@ on:
         type: string
         description: "当前系统版本（设置-关于本机-版本信息-版本号），如 16.0.2.402；内核对不上时用它挑最接近的旧源码"
         required: true
+      SIBLING_SOURCE:
+        type: boolean
+        description: "源码｜借用同硬件机型源码（本机型源码里没有设备内核时，自动改用国行/外版同硬件机型的源码，如平板 Pro↔平板2 海外；可能有细微差异，刷入前备份原厂 boot）"
+        required: false
+        default: false
       KSU_META:
         type: string
         description: "SukiSU 版本，一般不用改（格式：管理器分支/内置分支/显示标识/提交哈希，提交留空=最新）"
@@ -338,9 +343,10 @@ jobs:
         env:
           DEVICE_KERNEL: ${{ github.event.inputs.DEVICE_KERNEL }}
           DEVICE_FIRMWARE: ${{ github.event.inputs.DEVICE_FIRMWARE }}
+          SIBLING_SOURCE: ${{ github.event.inputs.SIBLING_SOURCE }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 - "$GITHUB_WORKSPACE/.repo/manifests_fallback/${FILE}.xml" <<'PY'
+          python3 - "$GITHUB_WORKSPACE/.repo/manifests_fallback" <<'PY'
           import json, os, re, sys, urllib.parse, urllib.request
           import xml.etree.ElementTree as ET
           dev = "".join(os.environ.get("DEVICE_KERNEL", "").split())
@@ -352,49 +358,22 @@ jobs:
           if not re.search(r"\d+(?:\.\d+){2,3}", os.environ.get("DEVICE_FIRMWARE", "")):
               print(f"::error title=OS Version::系统版本格式不对：「{os.environ.get('DEVICE_FIRMWARE', '')}」，请填写如 16.0.2.402")
               sys.exit(1)
-          def skip(why):
-              print(f"::notice title=Kernel Version::{why}，将在拉取源码后再核对")
-              sys.exit(0)
-          try:
-              root = ET.parse(sys.argv[1]).getroot()
-          except Exception:
-              skip("未读到源码清单")
-          remotes = {r.get("name"): (r.get("fetch") or "").rstrip("/") for r in root.findall("remote")}
-          default = root.find("default")
-          def_remote = default.get("remote") if default is not None else ""
-          def_rev = default.get("revision") if default is not None else ""
-          proj = None
-          for p in root.findall("project"):
-              dests = [l.get("dest", "") for l in p.findall("linkfile")]
-              if p.get("path", "").endswith("kernel_platform/common") or "kernel_platform/common" in dests:
-                  proj = p
-                  break
-          if proj is None:
-              skip("清单中未找到内核源码项目")
-          fetch = remotes.get(proj.get("remote") or def_remote, "")
-          owner = re.match(r"https://github\.com/([^/]+)$", fetch)
-          rev = proj.get("revision") or def_rev
-          if not owner or not rev:
-              skip("内核源码不在 GitHub 上")
-          def kernel_at(ref):
-              url = f"https://raw.githubusercontent.com/{owner.group(1)}/{proj.get('name')}/{ref}/Makefile"
-              mk = urllib.request.urlopen(url, timeout=60).read().decode("utf-8", "replace")
-              v = [re.search(rf"^{k} = (\d+)", mk, re.M) for k in ("VERSION", "PATCHLEVEL", "SUBLEVEL")]
-              return ".".join(x.group(1) for x in v) if all(v) else None
-          try:
-              src = kernel_at(rev)
-          except Exception:
-              skip("读取源码 Makefile 失败")
-          if not src:
-              skip("源码 Makefile 中没有版本号")
-          if src == dev:
-              print(f"::notice title=Kernel Version::提前核对通过：设备内核版本 {dev} 与源码一致")
-              sys.exit(0)
 
-          # 最新源码对不上时，到清单分支历史里找内核版本一致的那次固件同步（一加每次固件发布提交一次「Synchronize code for 机型_固件版本」）
-          def fail(extra):
-              print(f"::error title=Kernel Version::源码内核版本 {src} 与设备 {dev} 不一致，刷入可能无法开机，已停止构建{extra}")
-              sys.exit(1)
+          # 国行/外版同一硬件的机型：内核源码在同一仓库、同一清单分支，只是分支名不同（已逐对核对过清单）
+          TWIN_PAIRS = [
+              ("oneplus_pad_pro_b", "oneplus_pad2_b"),
+              ("oneplus_ace5_b", "oneplus_13r_b"),
+              ("oneplus_ace3_b", "oneplus_12r_b"),
+              ("oneplus_13t_b", "oneplus_13s_b"),
+              ("oneplus_ace_3v_b", "oneplus_nord_4_b"),
+              ("oneplus_ace2_b", "oneplus_11r_b"),
+              ("oneplus_ace_pro_v", "oneplus_10t_v"),
+              ("oneplus_ace_v", "oneplus_10r_v"),
+              ("oneplus_pad_2_pro_b", "oneplus_pad_3_b"),
+              ("oneplus_ace_6t", "oneplus_15r"),
+          ]
+          TWINS = {**dict(TWIN_PAIRS), **{b: a for a, b in TWIN_PAIRS}}
+
           def fw_ver(label):
               m = re.search(r"\d+(?:\.\d+){2,3}", label or "")
               return tuple(map(int, m.group().split("."))) if m else None
@@ -411,52 +390,142 @@ jobs:
                   if len(commits) < 100 or (out and not found):
                       break
               return sorted(out)
-          projects = []
-          for p in root.findall("project"):
-              o = re.match(r"https://github\.com/([^/]+)$", remotes.get(p.get("remote") or def_remote, ""))
-              r = p.get("revision") or def_rev
-              if o and r and not re.fullmatch(r"[0-9a-f]{40}", r):
-                  projects.append((p.get("name"), o.group(1), r))
-          try:
-              hist = {n: h for n, o, r in projects if (h := syncs(o, n, r))}
-          except Exception as e:
-              fail(f"（查询源码历史失败：{e}）")
-          if not hist.get(proj.get("name")):
-              fail("，该源码分支没有旧固件的提交可选")
-          # 某仓库在某固件时的状态 = 不晚于该固件的最近一次同步（没改动的仓库那次不会提交）
-          cands, table, kver = [], [], {}
-          for fw, label in sorted({e[0]: e[1] for h in hist.values() for e in h}.items()):
-              pins = {n: ([e for e in h if e[0] <= fw] or [None])[-1] for n, h in hist.items()}
-              if None in pins.values():
-                  continue
-              sha = pins[proj.get("name")][2]
-              if sha not in kver:
-                  try:
-                      kver[sha] = kernel_at(sha)
-                  except Exception as e:
-                      fail(f"（读取 {label} 源码 Makefile 失败：{e}）")
-              table.append(f"{label}={kver[sha]}")
-              if kver[sha] == dev:
-                  cands.append((fw, label, pins))
-          if not cands:
-              fail(f"；该源码分支各固件的内核：{'，'.join(table)}，没有 {dev}，请把设备更新到上面的固件后再构建")
-          want = fw_ver(os.environ.get("DEVICE_FIRMWARE"))
-          later = [c for c in cands if want and c[0] >= want]
-          fw, label, pins = later[0] if later else cands[-1]
+          def load(path):
+              root = ET.parse(path).getroot()
+              remotes = {r.get("name"): (r.get("fetch") or "").rstrip("/") for r in root.findall("remote")}
+              default = root.find("default")
+              def_remote = default.get("remote") if default is not None else ""
+              def_rev = default.get("revision") if default is not None else ""
+              proj = None
+              for p in root.findall("project"):
+                  dests = [l.get("dest", "") for l in p.findall("linkfile")]
+                  if p.get("path", "").endswith("kernel_platform/common") or "kernel_platform/common" in dests:
+                      proj = p
+                      break
+              return root, remotes, def_remote, def_rev, proj
 
-          text = open(sys.argv[1], encoding="utf-8", newline="").read()
-          for n, o, r in projects:
-              if n not in pins:
-                  continue
-              upstream = r if r.startswith("refs/") else f"refs/heads/{r}"
-              text = re.sub(rf'<project\b[^>]*\bname="{re.escape(n)}"[^>]*>',
-                            lambda m: re.sub(r'\s(?:revision|upstream)="[^"]*"', "", m.group()).replace(
-                                f'name="{n}"', f'name="{n}" revision="{pins[n][2]}" upstream="{upstream}"', 1),
-                            text)
-          open(sys.argv[1], "w", encoding="utf-8", newline="").write(text)
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
-              f.write(f"SOURCE_FIRMWARE={label}\n")
-          print(f"::warning title=Kernel Version::最新源码内核 {src} 与设备 {dev} 不一致，已改用系统版本 {label} 的源码（内核 {dev}）")
+          def resolve(path):
+              """在一份清单里找内核版本为 dev 的源码，返回 (状态, 信息, 最新源码内核)：
+              ok=最新源码一致；pinned=已把清单锁定到信息里的固件；fail=找不到（信息为说明）；skip=无法提前核对（信息为原因）"""
+              try:
+                  root, remotes, def_remote, def_rev, proj = load(path)
+              except Exception:
+                  return "skip", "未读到源码清单", None
+              if proj is None:
+                  return "skip", "清单中未找到内核源码项目", None
+              fetch = remotes.get(proj.get("remote") or def_remote, "")
+              owner = re.match(r"https://github\.com/([^/]+)$", fetch)
+              rev = proj.get("revision") or def_rev
+              if not owner or not rev:
+                  return "skip", "内核源码不在 GitHub 上", None
+              def kernel_at(ref):
+                  url = f"https://raw.githubusercontent.com/{owner.group(1)}/{proj.get('name')}/{ref}/Makefile"
+                  mk = urllib.request.urlopen(url, timeout=60).read().decode("utf-8", "replace")
+                  v = [re.search(rf"^{k} = (\d+)", mk, re.M) for k in ("VERSION", "PATCHLEVEL", "SUBLEVEL")]
+                  return ".".join(x.group(1) for x in v) if all(v) else None
+              try:
+                  src = kernel_at(rev)
+              except Exception:
+                  return "skip", "读取源码 Makefile 失败", None
+              if not src:
+                  return "skip", "源码 Makefile 中没有版本号", None
+              if src == dev:
+                  return "ok", src, src
+
+              # 最新源码对不上时，到清单分支历史里找内核版本一致的那次固件同步（一加每次固件发布提交一次「Synchronize code for 机型_固件版本」）
+              projects = []
+              for p in root.findall("project"):
+                  o = re.match(r"https://github\.com/([^/]+)$", remotes.get(p.get("remote") or def_remote, ""))
+                  r = p.get("revision") or def_rev
+                  if o and r and not re.fullmatch(r"[0-9a-f]{40}", r):
+                      projects.append((p.get("name"), o.group(1), r))
+              try:
+                  hist = {n: h for n, o, r in projects if (h := syncs(o, n, r))}
+              except Exception as e:
+                  return "fail", f"最新源码内核 {src}，查询源码历史失败：{e}", src
+              if not hist.get(proj.get("name")):
+                  return "fail", f"最新源码内核 {src}，该源码分支没有旧固件的提交可选", src
+              # 某仓库在某固件时的状态 = 不晚于该固件的最近一次同步（没改动的仓库那次不会提交）
+              cands, table, kver = [], [], {}
+              for fw, label in sorted({e[0]: e[1] for h in hist.values() for e in h}.items()):
+                  pins = {n: ([e for e in h if e[0] <= fw] or [None])[-1] for n, h in hist.items()}
+                  if None in pins.values():
+                      continue
+                  sha = pins[proj.get("name")][2]
+                  if sha not in kver:
+                      try:
+                          kver[sha] = kernel_at(sha)
+                      except Exception as e:
+                          return "fail", f"最新源码内核 {src}，读取 {label} 源码 Makefile 失败：{e}", src
+                  table.append(f"{label}={kver[sha]}")
+                  if kver[sha] == dev:
+                      cands.append((fw, label, pins))
+              if not cands:
+                  return "fail", f"各固件的内核：{'，'.join(table)}", src
+              want = fw_ver(os.environ.get("DEVICE_FIRMWARE"))
+              later = [c for c in cands if want and c[0] >= want]
+              fw, label, pins = later[0] if later else cands[-1]
+
+              text = open(path, encoding="utf-8", newline="").read()
+              for n, o, r in projects:
+                  if n not in pins:
+                      continue
+                  upstream = r if r.startswith("refs/") else f"refs/heads/{r}"
+                  text = re.sub(rf'<project\b[^>]*\bname="{re.escape(n)}"[^>]*>',
+                                lambda m: re.sub(r'\s(?:revision|upstream)="[^"]*"', "", m.group()).replace(
+                                    f'name="{n}"', f'name="{n}" revision="{pins[n][2]}" upstream="{upstream}"', 1),
+                                text)
+              open(path, "w", encoding="utf-8", newline="").write(text)
+              return "pinned", label, src
+
+          def put_env(**kv):
+              with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+                  f.writelines(f"{k}={v}\n" for k, v in kv.items())
+
+          base, file = sys.argv[1], os.environ["FILE"]
+          state, info, src = resolve(f"{base}/{file}.xml")
+          if state == "skip":
+              print(f"::notice title=Kernel Version::{info}，将在拉取源码后再核对")
+              sys.exit(0)
+          if state == "ok":
+              print(f"::notice title=Kernel Version::提前核对通过：设备内核版本 {dev} 与源码一致")
+              sys.exit(0)
+          if state == "pinned":
+              put_env(SOURCE_FIRMWARE=info)
+              print(f"::warning title=Kernel Version::最新源码内核 {src} 与设备 {dev} 不一致，已改用系统版本 {info} 的源码（内核 {dev}）")
+              sys.exit(0)
+
+          # 本机型源码里没有设备内核时，按勾选借用国行/外版同硬件机型的源码；借用后后续步骤的 FILE 都指向它，产物名仍用所选机型
+          detail = [f"{file}：{info}"]
+          twin = TWINS.get(file)
+          if twin and os.environ.get("SIBLING_SOURCE") == "true":
+              tpath = f"{base}/{twin}.xml"
+              url = "https://raw.githubusercontent.com/{}/{}/{}/{}.xml".format(
+                  os.environ["MANIFEST_REPO"], os.environ["MANIFEST_REPO_NAME"], urllib.parse.quote(os.environ["MANIFEST_BRANCH"]), twin)
+              try:
+                  urllib.request.urlretrieve(url, tpath)
+                  tproj = load(tpath)[4]
+              except Exception:
+                  tproj = None
+              own = load(f"{base}/{file}.xml")[4].get("name")
+              if tproj is None:
+                  detail.append(f"同硬件机型 {twin}：清单分支 {os.environ['MANIFEST_BRANCH']} 里没有它的源码清单")
+              elif tproj.get("name") != own:
+                  detail.append(f"同硬件机型 {twin}：内核源码仓库不同（{tproj.get('name')}），不借用")
+              else:
+                  state, info, src = resolve(tpath)
+                  if state in ("ok", "pinned"):
+                      put_env(FILE=twin, SOURCE_DEVICE=twin, **({"SOURCE_FIRMWARE": info} if state == "pinned" else {}))
+                      used = f"系统版本 {info} 的源码" if state == "pinned" else "最新源码"
+                      print(f"::warning title=Kernel Version::{file} 的源码里没有内核 {dev}，已借用同硬件机型 {twin} 的{used}（内核 {dev}）；国行/外版可能有细微差异，刷入前请备份原厂 boot")
+                      with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+                          f.write(f"### 源码借用自同硬件机型 `{twin}`（{used}）\n\n")
+                      sys.exit(0)
+                  detail.append(f"同硬件机型 {twin}：{info}")
+          elif twin:
+              detail.append(f"可勾选「借用同硬件机型源码」尝试 {twin} 的源码")
+          print(f"::error title=Kernel Version::源码里找不到设备内核 {dev}，刷入可能无法开机，已停止构建。{'；'.join(detail)}。可把设备更新到上面列出内核对应的固件，或等一加放出新源码后再构建")
+          sys.exit(1)
           PY
 
       - name: Stash Manifests
@@ -1013,6 +1082,7 @@ jobs:
         run: |
           cd kernel_workspace/kernel_platform/common
           # 原厂 oplus_task_struct 在 lkinfo 后有风驰 scx 字段（176 字节），公开源码删了它导致布局错位、开机崩溃；目前只核对过 pad2_b 源码对应的原厂布局
+          # FILE 是实际使用的源码机型，借用 pad2_b 源码（如平板 Pro 国行）时同样会执行
           python3 "$GITHUB_WORKSPACE/kernel_workspace/Action-Build/scripts/fix_oplus_task_struct.py" kernel/locking/sa_common_struct.h
 
       - name: Apply LSM_BBG
