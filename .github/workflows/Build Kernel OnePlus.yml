@@ -500,7 +500,7 @@ jobs:
               sys.exit(0)
 
           # 本机型源码里没有设备内核时，按勾选借用国行/外版同款的源码；借用后后续步骤的 FILE 都指向它，产物名仍用所选机型
-          detail, hint = [f"{file} → {info}"], ""
+          detail = [f"{file} → {info}"]
           twin = TWINS.get(file)
           if twin and os.environ.get("SIBLING_SOURCE") == "true":
               tpath = f"{base}/{twin}.xml"
@@ -528,8 +528,12 @@ jobs:
                       sys.exit(0)
                   detail.append(f"同款 {twin} → {info}")
           elif twin:
-              hint = f"。勾上「借用国行/外版同款源码」可以试试同款 {twin} 的源码"
-          print(f"::error title=Kernel Version::没找到内核 {dev} 的源码，硬编出来很可能开不了机，所以先停了。目前有的：{'；'.join(detail)}。可以把设备升到其中一个系统版本再编，或者等一加更新源码{hint}")
+              # 有同款可借但没勾选：只提示去勾选，不再建议升级系统（本机型源码往往比设备还旧）
+              newer = tuple(map(int, dev.split("."))) > tuple(map(int, src.split(".")))
+              own = f"{file} 的源码目前只到 {src}" if newer else f"{file} 的源码目前有的：{info}"
+              print(f"::error title=Kernel Version::没找到内核 {dev} 的源码，硬编出来很可能开不了机，所以先停了。{own}。勾上「借用国行/外版同款源码」可以试试同款 {twin} 的源码")
+              sys.exit(1)
+          print(f"::error title=Kernel Version::没找到内核 {dev} 的源码，硬编出来很可能开不了机，所以先停了。目前有的：{'；'.join(detail)}。可以把设备升到其中一个系统版本再编，或者等一加更新源码")
           sys.exit(1)
           PY
 
